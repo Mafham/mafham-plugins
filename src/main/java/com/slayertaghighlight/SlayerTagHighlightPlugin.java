@@ -12,6 +12,7 @@ import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -21,8 +22,10 @@ import net.runelite.client.plugins.slayer.SlayerPluginService;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.Text;
+import net.runelite.client.util.WildcardMatcher;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -56,6 +59,7 @@ public class SlayerTagHighlightPlugin extends Plugin {
 
 	@Getter
 	private ArrayList<NPC> highlights = new ArrayList<>();
+	private List<String> filterNames;
 
 	@Override
 	protected void startUp() {
@@ -65,6 +69,7 @@ public class SlayerTagHighlightPlugin extends Plugin {
 		}
 		overlayManager.add(overlay);
 		overlayManager.add(minimapOverlay);
+		filterNames = Text.fromCSV(config.filterList());
 	}
 
 	@Override
@@ -81,6 +86,7 @@ public class SlayerTagHighlightPlugin extends Plugin {
 					&& !highlights.contains(npc)
 					&& !npc.isInteracting()
 					&& !npc.isDead()
+					&& (highlightMatchesNPCName(npc.getName()) || !config.filterByList())
 			) {
 				highlights.add(npc);
 			}
@@ -97,4 +103,25 @@ public class SlayerTagHighlightPlugin extends Plugin {
 			menuEntry.setTarget(string);
 		}
 	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event) {
+		if (event.getKey().equals("filterList")) {
+			filterNames = Text.fromCSV(config.filterList());
+		}
+	}
+
+	private boolean highlightMatchesNPCName(String npcName)
+	{
+		for (String filterName : filterNames)
+		{
+			if (WildcardMatcher.matches(filterName, npcName))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 }
